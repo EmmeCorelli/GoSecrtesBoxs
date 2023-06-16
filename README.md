@@ -1,2 +1,2 @@
-# GoSecrtesBoxs
-A Golang solution to manage project's config and secrets
+# config.yalm
+A Golang solution to simplify project's config and secrets management
