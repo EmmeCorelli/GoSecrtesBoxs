@@ -1,0 +1,5 @@
+Server:     "Server-Test"
+User:       "Superadmin"
+Password:   "super-strong-password"
+Enviroment: "Test-room"
+Skip:       true
