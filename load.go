@@ -3,22 +3,58 @@ package config
 import (
 	"io/fs"
 	"os"
+	"reflect"
 
 	"github.com/creasty/defaults"
 	"gopkg.in/yaml.v3"
 )
 
-func Load(ptr interface{}, filename string, createIfNotExists bool, key []byte) error {
+func Load(ptr interface{}, filename string, createIfNotExists bool, key []byte, onlyFields bool) error {
 	if err := defaults.Set(ptr); err != nil {
 		return err
 	}
 
-	out, err := read(ptr, filename, createIfNotExists, key)
+	keyFile := key
+	if onlyFields {
+		keyFile = nil
+	}
+
+	out, err := read(ptr, filename, createIfNotExists, keyFile)
 	if err != nil {
 		return err
 	}
 
-	return yaml.Unmarshal(out, ptr)
+	if err := yaml.Unmarshal(out, ptr); err != nil {
+		return err
+	}
+
+	if key != nil && onlyFields {
+		val := reflect.Indirect(reflect.ValueOf(ptr))
+		for i := 0; i < reflect.ValueOf(ptr).Elem().NumField(); i++ {
+
+			structField := val.Type().Field(i)
+			dataField := val.Field(i)
+
+			// structField, found := reflect.TypeOf(ptr).Elem().FieldByName(name)
+			// if !found {
+			// 	continue
+			// }
+			if structField.Tag.Get("encrypted") == "true" {
+				if dataField.Kind() == reflect.String {
+					value := []byte(dataField.String())
+					if err := decrypt(&value, key); err != nil {
+						return err
+					}
+					dataField.SetString(string(value))
+				}
+
+			}
+
+		}
+
+	}
+
+	return nil
 }
 
 func read(ptr interface{}, filename string, createIfNotExists bool, key []byte) ([]byte, error) {

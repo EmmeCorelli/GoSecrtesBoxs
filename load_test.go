@@ -42,7 +42,7 @@ func TestConfigFile(t *testing.T) {
 		// using tt.name from the case to use it as the 't.Run' test name
 		t.Run(tt.name, func(t *testing.T) {
 			var got = Conf{}
-			if err := config.Load(&got, tt.filename, tt.create, nil); err != tt.err {
+			if err := config.Load(&got, tt.filename, tt.create, nil, false); err != tt.err {
 				if errors.Is(err, tt.err) {
 					return
 				}
@@ -61,7 +61,7 @@ func TestConfigFile(t *testing.T) {
 	}
 }
 
-func TestCryptFile(t *testing.T) {
+func TestCryptedFile(t *testing.T) {
 
 	const filename = "crypto.yaml"
 	key128 := []byte("1234567890abcdef")
@@ -80,13 +80,13 @@ func TestCryptFile(t *testing.T) {
 	var got = Conf{}
 	want := "myServer"
 
-	if err := config.Load(&got, filename, true, nil); err != nil {
+	if err := config.Load(&got, filename, true, nil, false); err != nil {
 		t.Errorf("Unexpected error %q!", err)
 	}
 	if err := config.EncryptFile(filename, key128); err != nil {
 		t.Errorf("Unable to encrypt %s: %q!", filename, err)
 	}
-	if err := config.Load(&got, filename, false, key128); err != nil {
+	if err := config.Load(&got, filename, false, key128, false); err != nil {
 		t.Errorf("Unexpected error %q!", err)
 	}
 
@@ -94,4 +94,36 @@ func TestCryptFile(t *testing.T) {
 		t.Errorf("got %q want %q", got.Server, want)
 	}
 
+	if err := os.Chdir(".."); err != nil {
+		t.Errorf("Fail to come back to home: %q!", err)
+	}
+
+}
+
+func TestCryptedField(t *testing.T) {
+	const filename = "field.yaml"
+	key128 := []byte("1234567890abcdef")
+
+	type Conf struct {
+		Server string `yaml:"Server" default:"myServer" encrypted:"true"`
+	}
+
+	if err := os.Chdir("test"); err != nil {
+		t.Errorf("Test directory doesn't exists: %q!", err)
+	}
+
+	var got = Conf{}
+	want := "ServerChipred"
+
+	if err := config.Load(&got, filename, true, key128, true); err != nil {
+		t.Errorf("Unexpected error %q!", err)
+	}
+
+	if got.Server != want {
+		t.Errorf("got %q want %q", got.Server, want)
+	}
+
+	if err := os.Chdir(".."); err != nil {
+		t.Errorf("Fail to come back to home: %q!", err)
+	}
 }

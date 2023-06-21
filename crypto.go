@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	b64 "encoding/base64"
 	"io"
 	"io/fs"
 	"os"
@@ -25,6 +26,9 @@ func EncryptFile(filename string, key []byte) error {
 	return nil
 }
 
+var Encrypt = encrypt
+var Decrypt = decrypt
+
 func encrypt(plain *[]byte, key []byte) error {
 	if key == nil {
 		return nil
@@ -44,7 +48,7 @@ func encrypt(plain *[]byte, key []byte) error {
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
 		return err
 	}
-	*plain = gcm.Seal(nil, nonce, *plain, nil)
+	*plain = []byte(b64.StdEncoding.EncodeToString(gcm.Seal(nonce, nonce, *plain, nil)))
 	return nil
 }
 
@@ -78,7 +82,11 @@ func decrypt(encrypted *[]byte, key []byte) error {
 	if err != nil {
 		return err
 	}
-	chiper := *encrypted
+	chiper, err := b64.StdEncoding.DecodeString(string(*encrypted))
+	if err != nil {
+		return err
+	}
+
 	nonce, chiper := chiper[:gcm.NonceSize()], chiper[gcm.NonceSize():]
 
 	if *encrypted, err = gcm.Open(nil, nonce, chiper, nil); err != nil {
