@@ -1,49 +1,59 @@
 package config
 
 import (
+	"io/fs"
 	"os"
 
 	"github.com/creasty/defaults"
 	"gopkg.in/yaml.v3"
 )
 
-func Load(ptr interface{}, filename string, createIfNotExists bool) error {
+func Load(ptr interface{}, filename string, createIfNotExists bool, key []byte) error {
 	if err := defaults.Set(ptr); err != nil {
 		return err
 	}
 
-	file, err := open(ptr, filename, createIfNotExists)
+	out, err := read(ptr, filename, createIfNotExists, key)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	return yaml.NewDecoder(file).Decode(ptr)
+	return yaml.Unmarshal(out, ptr)
 }
 
-func open(ptr interface{}, filename string, createIfNotExists bool) (*os.File, error) {
+func read(ptr interface{}, filename string, createIfNotExists bool, key []byte) ([]byte, error) {
+
+	if filename == "" {
+		filename = "./config.yaml"
+	}
 
 	if !fileExists(filename) && createIfNotExists {
-
-		if filename == "" {
-			filename = "./config.yaml"
-		}
-
-		file, err := os.Create(filename)
+		out, err := yaml.Marshal(ptr)
 		if err != nil {
 			return nil, err
 		}
-		defer file.Close()
 
-		if err := yaml.NewEncoder(file).Encode(ptr); err != nil {
+		if err := encrypt(&out, key); err != nil {
+			return nil, err
+		}
+
+		if err := os.WriteFile(filename, out, fs.ModePerm); err != nil {
 			return nil, err
 		}
 	}
 
-	return os.Open(filename)
+	out, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := decrypt(&out, key); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
-// function to check if file exists
 func fileExists(filename string) bool {
 	_, error := os.Stat(filename)
 	return !os.IsNotExist(error)
