@@ -42,7 +42,7 @@ func Load(ptr interface{}, filename string, createIfNotExists bool, key []byte, 
 			if structField.Tag.Get("encrypted") == "true" {
 				if dataField.Kind() == reflect.String {
 					value := []byte(dataField.String())
-					if err := decrypt(&value, key); err != nil {
+					if err := Decrypt(&value, key); err != nil {
 						return err
 					}
 					dataField.SetString(string(value))
@@ -69,7 +69,7 @@ func read(ptr interface{}, filename string, createIfNotExists bool, key []byte) 
 			return nil, err
 		}
 
-		if err := encrypt(&out, key); err != nil {
+		if err := Encrypt(&out, key); err != nil {
 			return nil, err
 		}
 
@@ -83,7 +83,7 @@ func read(ptr interface{}, filename string, createIfNotExists bool, key []byte) 
 		return nil, err
 	}
 
-	if err := decrypt(&out, key); err != nil {
+	if err := Decrypt(&out, key); err != nil {
 		return nil, err
 	}
 

@@ -16,7 +16,7 @@ func EncryptFile(filename string, key []byte) error {
 		return err
 	}
 
-	if err := encrypt(&out, key); err != nil {
+	if err := Encrypt(&out, key); err != nil {
 		return err
 	}
 
@@ -26,10 +26,7 @@ func EncryptFile(filename string, key []byte) error {
 	return nil
 }
 
-var Encrypt = encrypt
-var Decrypt = decrypt
-
-func encrypt(plain *[]byte, key []byte) error {
+func Encrypt(plain *[]byte, key []byte) error {
 	if key == nil {
 		return nil
 	}
@@ -58,7 +55,7 @@ func DecryptFile(filename string, key []byte) error {
 		return err
 	}
 
-	if err := decrypt(&out, key); err != nil {
+	if err := Decrypt(&out, key); err != nil {
 		return err
 	}
 
@@ -68,7 +65,7 @@ func DecryptFile(filename string, key []byte) error {
 	return nil
 }
 
-func decrypt(encrypted *[]byte, key []byte) error {
+func Decrypt(encrypted *[]byte, key []byte) error {
 	if key == nil {
 		return nil
 	}
