@@ -1,49 +1,95 @@
 package config
 
 import (
+	"io/fs"
 	"os"
+	"reflect"
 
 	"github.com/creasty/defaults"
 	"gopkg.in/yaml.v3"
 )
 
-func Load(ptr interface{}, filename string, createIfNotExists bool) error {
+func Load(ptr interface{}, filename string, createIfNotExists bool, key []byte, onlyFields bool) error {
 	if err := defaults.Set(ptr); err != nil {
 		return err
 	}
 
-	file, err := open(ptr, filename, createIfNotExists)
+	keyFile := key
+	if onlyFields {
+		keyFile = nil
+	}
+
+	out, err := read(ptr, filename, createIfNotExists, keyFile)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	return yaml.NewDecoder(file).Decode(ptr)
-}
+	if err := yaml.Unmarshal(out, ptr); err != nil {
+		return err
+	}
 
-func open(ptr interface{}, filename string, createIfNotExists bool) (*os.File, error) {
+	if key != nil && onlyFields {
+		val := reflect.Indirect(reflect.ValueOf(ptr))
+		for i := 0; i < reflect.ValueOf(ptr).Elem().NumField(); i++ {
 
-	if !fileExists(filename) && createIfNotExists {
+			structField := val.Type().Field(i)
+			dataField := val.Field(i)
 
-		if filename == "" {
-			filename = "./config.yaml"
+			// structField, found := reflect.TypeOf(ptr).Elem().FieldByName(name)
+			// if !found {
+			// 	continue
+			// }
+			if structField.Tag.Get("encrypted") == "true" {
+				if dataField.Kind() == reflect.String {
+					value := []byte(dataField.String())
+					if err := Decrypt(&value, key); err != nil {
+						return err
+					}
+					dataField.SetString(string(value))
+				}
+
+			}
+
 		}
 
-		file, err := os.Create(filename)
+	}
+
+	return nil
+}
+
+func read(ptr interface{}, filename string, createIfNotExists bool, key []byte) ([]byte, error) {
+
+	if filename == "" {
+		filename = "./config.yaml"
+	}
+
+	if !fileExists(filename) && createIfNotExists {
+		out, err := yaml.Marshal(ptr)
 		if err != nil {
 			return nil, err
 		}
-		defer file.Close()
 
-		if err := yaml.NewEncoder(file).Encode(ptr); err != nil {
+		if err := Encrypt(&out, key); err != nil {
+			return nil, err
+		}
+
+		if err := os.WriteFile(filename, out, fs.ModePerm); err != nil {
 			return nil, err
 		}
 	}
 
-	return os.Open(filename)
+	out, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := Decrypt(&out, key); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
-// function to check if file exists
 func fileExists(filename string) bool {
 	_, error := os.Stat(filename)
 	return !os.IsNotExist(error)
